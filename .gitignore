@@ -1,5 +1,16 @@
-﻿venv/
+﻿# Python
+venv/
 __pycache__/
 *.pyc
+
+# Local Configs & Outputs
 .env
 aws_scan_output.json
+
+# Terraform runtime & state files (CRITICAL FIX)
+.terraform/
+terraform.tfstate
+terraform.tfstate.backup
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
