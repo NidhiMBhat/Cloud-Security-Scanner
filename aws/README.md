@@ -31,3 +31,37 @@ This module discovers AWS S3 storage buckets, collects their security configurat
 Set up your programmatic access keys using a read-only IAM user:
 ```powershell
 aws configure
+(Provide your AWS Access Key ID, Secret Access Key, preferred region e.g. ap-south-1, and output format json).
+
+3. Install Dependencies
+Navigate to the root directory and install the required Python packages:
+
+PowerShell
+pip install -r aws/requirements.txt
+🚀 How to Run
+Option A: Provision Test Infrastructure via Terraform
+To spin up sample secure and misconfigured test buckets automatically:
+
+PowerShell
+cd terraform
+terraform init
+terraform apply
+cd ..
+Option B: Run the AWS Scanner Module
+Execute the scanner to audit your S3 buckets and generate the normalized JSON output:
+
+PowerShell
+python aws/aws_scanner.py
+Option C: Run Offline Unit Tests
+To verify all security checking logic using mock responses:
+
+PowerShell
+python -m unittest aws/test_scanner.py
+🔌 Integration with Analysis Engine (Person 3)
+The Analysis Engine can import and consume live scan results directly in-memory without needing intermediate static files:
+
+Python
+from aws.aws_scanner import scan_aws_s3_buckets
+
+# Fetch live normalized security findings
+aws_findings = scan_aws_s3_buckets()
