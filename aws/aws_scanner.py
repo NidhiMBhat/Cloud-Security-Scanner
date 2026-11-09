@@ -1,7 +1,8 @@
 import json
 from datetime import datetime
-from aws_access import get_s3_client, list_s3_buckets
-from aws_checks import (
+
+from .aws_access import get_s3_client, list_s3_buckets
+from .aws_checks import (
     check_encryption,
     check_logging,
     check_versioning,
@@ -9,7 +10,6 @@ from aws_checks import (
     check_bucket_policy_public,
     check_bucket_acl_public
 )
-
 def scan_aws_s3_buckets(region_name="us-east-1"):
     """
     Discovers S3 buckets, runs security configurations checks, 
