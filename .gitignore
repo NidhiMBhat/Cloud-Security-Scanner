@@ -8,7 +8,9 @@ __pycache__/
 .env
 aws_scan_output.json
 gcp_scan_output.json
+scans.db
 
+tests
 # Terraform runtime & state files (CRITICAL FIX)
 .terraform/
 terraform.tfstate
@@ -17,3 +19,5 @@ terraform.tfstate.backup
 *.tfstate.*
 .terraform.lock.hcl
 .venv
+
+hello.txt

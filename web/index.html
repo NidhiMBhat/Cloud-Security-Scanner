@@ -1,0 +1,1334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cloud Security Scanner</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS CDN with Custom User Palette -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Manrope"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+            mono: ['"IBM Plex Mono"', 'monospace'],
+          },
+          colors: {
+            warm: {
+              950: '#f6efe7', // Soft canvas
+              900: '#fffaf4', // Surfaces, cards, panels
+              700: '#e5d8c9', // Borders, outlines, dividers
+              500: '#826d5a', // Muted text, secondary labels, tags
+              300: '#a8734f', // Warm accent
+              100: '#382a20', // Primary text
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- React 18 & Babel for JSX -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    :root {
+      color-scheme: light;
+      --canvas: #f6efe7;
+      --surface: #fffaf4;
+      --surface-raised: #fffdf9;
+      --ink: #382a20;
+      --muted: #826d5a;
+      --accent: #a8734f;
+      --sidebar: #624630;
+      --sidebar-width: 248px;
+      --line: rgba(98, 70, 48, .12);
+      --card-radius: 18px;
+      --control-radius: 11px;
+      --soft-shadow: 0 10px 30px rgba(64, 43, 27, .055);
+    }
+    * { box-sizing: border-box; }
+    html { min-width: 320px; background: var(--canvas); }
+    body {
+      margin: 0;
+      padding: 0;
+      background: var(--canvas);
+      color: var(--ink);
+      font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+    ::selection { background: #dfc3a8; color: var(--ink); }
+    ::-webkit-scrollbar { width: 7px; height: 7px; }
+    ::-webkit-scrollbar-track { background: var(--canvas); }
+    ::-webkit-scrollbar-thumb { background: #d7c6b4; border-radius: 999px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+    button, input, textarea, select {
+      font: inherit;
+      transition: color .18s ease, background-color .18s ease, border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+    }
+    button { cursor: pointer; }
+    button:disabled { cursor: wait; }
+    button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 3px;
+    }
+
+    /* The shell uses a real grid: the sidebar gets a fixed column and the page owns the remaining width. */
+    #root > .min-h-screen {
+      display: grid !important;
+      grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+      grid-template-rows: minmax(100vh, auto);
+      align-items: start;
+      min-height: 100vh;
+      width: 100%;
+    }
+    header {
+      position: sticky !important;
+      inset: auto;
+      z-index: 40;
+      grid-column: 1;
+      grid-row: 1;
+      width: 100%;
+      min-width: 0;
+      height: 100vh !important;
+      min-height: 100vh;
+      padding: 30px 14px 22px;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: flex-start;
+      gap: 30px;
+      background: linear-gradient(155deg, #674b33 0%, #60452f 48%, #583f2c 100%) !important;
+      border: 0 !important;
+      box-shadow: 16px 0 40px -24px rgba(52, 35, 22, .35);
+    }
+    header > div:first-child {
+      padding: 0 0 22px;
+      border-bottom: 1px solid rgba(255,255,255,.09);
+    }
+    header > div:first-child > div:first-child {
+      width: 36px;
+      height: 36px;
+      flex: 0 0 36px;
+      border-radius: 12px;
+      background: rgba(255, 249, 240, .13) !important;
+      border: 1px solid rgba(255, 249, 240, .17) !important;
+    }
+    header > div:first-child > div:first-child svg { color: #fff2e2 !important; }
+    header > div:first-child > div:first-child { gap: 10px; }
+    header > div:first-child .brand-content { min-width: 0; }
+    header > div:first-child h1 { color: #fff8ef !important; font-size: 12.5px; font-weight: 700; letter-spacing: -.035em; line-height: 1.3; white-space: nowrap; }
+    header > div:first-child p { margin-top: 4px; color: #ddc9b4 !important; font-size: 10.5px; letter-spacing: .01em; }
+    header > div:first-child span { background: rgba(255,255,255,.11) !important; color: #f8e3cf !important; border-color: rgba(255,255,255,.13) !important; font-size: 9px; letter-spacing: .08em; }
+    header nav {
+      display: flex;
+      flex: 1 1 auto;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 5px;
+      width: 100%;
+      padding: 0;
+      border: 0 !important;
+      background: transparent !important;
+      box-shadow: none !important;
+      scrollbar-width: none;
+    }
+    header nav::-webkit-scrollbar { display: none; }
+    header nav > button {
+      display: flex;
+      align-items: center;
+      align-self: stretch;
+      flex: 0 0 auto;
+      width: 100%;
+      min-height: 46px;
+      margin-left: 0 !important;
+      padding: 0 14px;
+      border: 1px solid transparent;
+      border-radius: 12px;
+      color: #e6d7c8 !important;
+      font-size: 13px;
+      font-weight: 550;
+      letter-spacing: -.01em;
+      text-align: left;
+      white-space: nowrap;
+    }
+    header nav > button:hover { background: rgba(255,255,255,.075); color: #fffaf4 !important; }
+    header nav > button[aria-current="page"] {
+      background: rgba(255, 248, 237, .15) !important;
+      border-color: rgba(255, 248, 237, .08);
+      box-shadow: inset 3px 0 0 #e2bd98;
+      color: #fffaf4 !important;
+      font-weight: 700;
+    }
+    header nav button span { background: rgba(255,255,255,.12) !important; color: inherit !important; }
+    header > div:last-child {
+      flex: 0 0 auto;
+      margin-top: auto;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 11px;
+    }
+    header > div:last-child button {
+      justify-content: center;
+      min-height: 44px;
+      padding: 0 13px;
+      border-radius: 11px;
+      background: #f2e5d6 !important;
+      color: #493526 !important;
+      border-color: rgba(255,255,255,.15) !important;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    header > div:last-child button:hover { background: #fffaf4 !important; box-shadow: 0 7px 18px rgba(38,25,16,.14); }
+    header > div:last-child > div {
+      justify-content: center;
+      min-height: 39px;
+      background: rgba(255,255,255,.075) !important;
+      border-color: rgba(255,255,255,.08) !important;
+      border-radius: 11px;
+    }
+    header > div:last-child > div span:last-child { color: #f3e3d3 !important; }
+
+    main {
+      grid-column: 2;
+      grid-row: 1;
+      justify-self: center;
+      align-self: stretch;
+      width: 100% !important;
+      max-width: 1600px !important;
+      min-width: 0;
+      margin: 0 !important;
+      padding: clamp(30px, 4vw, 58px) clamp(24px, 4.2vw, 68px) 64px !important;
+    }
+    main > .page-intro { margin-bottom: 0; }
+    main > .page-intro .eyebrow { color: var(--accent); font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+    main > .page-intro h2 { margin: 8px 0 5px; color: var(--ink); font-size: clamp(29px, 3vw, 39px); font-weight: 700; line-height: 1.16; letter-spacing: -.045em; }
+    main > .page-intro p { margin: 0; max-width: 720px; color: var(--muted); font-size: 14px; line-height: 1.65; }
+    main h3, main h4 { font-weight: 650; letter-spacing: -.02em; }
+    main .font-bold { font-weight: 650 !important; }
+    main [class~="text-xs"] { font-size: 13px !important; line-height: 1.55; }
+    main [class*="text-[11px]"] { font-size: 12px !important; }
+    [class*="rounded-xl"][class*="border"] {
+      border-color: var(--line) !important;
+      border-radius: var(--card-radius) !important;
+      box-shadow: var(--soft-shadow);
+    }
+    main input, main textarea, main select {
+      background: var(--surface-raised) !important;
+      color: var(--ink) !important;
+      color-scheme: light;
+      border-color: rgba(98,70,48,.18) !important;
+      border-radius: var(--control-radius) !important;
+      font-size: 13px;
+    }
+    main input, main select { min-height: 46px; padding-top: 10px !important; padding-bottom: 10px !important; }
+    main textarea { line-height: 1.65; }
+    main input::placeholder, main textarea::placeholder { color: #a08b77 !important; }
+    main label { color: #624630; font-size: 12px !important; font-weight: 650; }
+    .font-mono { font-family: 'IBM Plex Mono', 'SFMono-Regular', monospace !important; }
+    main p { line-height: 1.6; }
+    main button {
+      min-height: 40px;
+      padding-right: 14px;
+      padding-left: 14px;
+      border-radius: var(--control-radius);
+      font-family: inherit;
+      font-weight: 600;
+    }
+    main button.w-full.py-3 {
+      min-height: 50px;
+      background: var(--sidebar) !important;
+      color: #fffaf4 !important;
+      border-color: var(--sidebar) !important;
+      border-radius: 12px;
+      box-shadow: 0 7px 18px rgba(98,70,48,.13);
+      font-size: 13px;
+      letter-spacing: .025em;
+    }
+    main button.w-full.py-3:hover { background: #493526 !important; border-color: #493526 !important; box-shadow: 0 10px 22px rgba(98,70,48,.2); }
+    .provider-option {
+      display: block;
+      width: 100%;
+      min-height: 128px;
+      padding: 18px !important;
+      background: rgba(255,250,244,.76);
+      text-align: left;
+      cursor: pointer;
+    }
+    .provider-option:hover { background: var(--surface-raised); box-shadow: 0 12px 28px rgba(91,65,43,.08) !important; }
+    .provider-option[aria-pressed="true"] { border-color: rgba(168,115,79,.38) !important; box-shadow: 0 0 0 2px rgba(168,115,79,.08), var(--soft-shadow) !important; }
+    .findings-empty-state {
+      display: flex;
+      width: 100%;
+      min-height: 330px;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 44px 28px;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: var(--surface);
+      box-shadow: var(--soft-shadow);
+      text-align: center;
+    }
+    .empty-state-icon {
+      display: grid;
+      width: 62px;
+      height: 62px;
+      place-items: center;
+      border: 1px solid rgba(168,115,79,.12);
+      border-radius: 20px;
+      background: #f5e9dc;
+      color: var(--accent);
+    }
+    .empty-state-icon svg { width: 30px; height: 30px; }
+    .empty-state-copy { max-width: 560px; margin: 0 auto; color: var(--muted); }
+    .empty-state-actions { display: flex; justify-content: center; gap: 12px; margin-top: 24px; }
+    .empty-state-actions button { min-height: 46px; padding: 0 20px; border-radius: 12px; font-size: 13px; }
+    .empty-state-actions button:first-child { background: var(--sidebar); color: #fffaf4; border: 1px solid var(--sidebar); }
+    .empty-state-actions button:last-child { background: var(--surface-raised); color: var(--ink); border: 1px solid rgba(98,70,48,.18); }
+    .empty-state-actions button:hover { box-shadow: 0 8px 18px rgba(64,43,27,.1); transform: translateY(-1px); }
+    .upload-page { width: min(100%, 800px); margin: 0 auto; }
+    .upload-dropzone { min-height: 280px; display: flex; flex-direction: column; justify-content: center; border-radius: 22px !important; }
+    main button:not(:disabled):hover { transform: translateY(-1px); }
+    @media (max-width: 1050px) {
+      :root { --sidebar-width: 224px; }
+      main { padding-right: 28px !important; padding-left: 28px !important; }
+    }
+    @media (max-width: 820px) {
+      #root > .min-h-screen { grid-template-columns: minmax(0,1fr); grid-template-rows: auto 1fr; }
+      header {
+        position: sticky !important;
+        top: 0;
+        grid-column: 1;
+        grid-row: 1;
+        width: 100%;
+        height: auto !important;
+        min-height: 0;
+        padding: 12px 20px;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px 18px;
+        box-shadow: 0 12px 28px -24px rgba(52,35,22,.4);
+      }
+      header > div:first-child { flex: 1 1 260px; padding: 0; border: 0; }
+      header nav { order: 3; flex: 1 0 100%; flex-direction: row; gap: 5px; overflow-x: auto; padding: 1px 0 2px; }
+      header nav > button { width: auto; min-height: 40px; padding: 0 13px; }
+      header > div:last-child { flex-direction: row; align-items: center; gap: 8px; margin: 0 0 0 auto; }
+      header > div:last-child button { min-height: 40px; }
+      main { grid-column: 1; grid-row: 2; max-width: 100% !important; padding: 30px 24px 48px !important; }
+    }
+    @media (max-width: 560px) {
+      header { padding: 11px 14px; gap: 8px 12px; }
+      header > div:first-child { flex-basis: 100%; }
+      header nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: visible; gap: 4px; }
+      header nav > button { width: 100%; min-height: 38px; padding: 0 11px; font-size: 12px; }
+      header > div:last-child { width: 100%; margin: 0; }
+      header > div:last-child button { flex: 1; }
+      header > div:last-child > div { margin-left: auto; }
+      main { padding: 24px 16px 38px !important; }
+      main > .page-intro h2 { font-size: 30px; }
+      .findings-empty-state { min-height: 300px; padding: 34px 20px; }
+      .empty-state-actions { width: 100%; flex-direction: column; }
+      .empty-state-actions button { width: 100%; }
+      .upload-page { padding-top: 4px; }
+      .upload-dropzone { min-height: 240px; padding: 28px 18px !important; }
+    }
+  </style>
+</head>
+<body class="bg-[#f6efe7] text-[#382a20] antialiased selection:bg-[#e5d8c9] selection:text-[#382a20]">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useMemo } = React;
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // MINIMAL CLEAN UI ICONS (Strictly functional SVG icons, NO logos)
+    // ─────────────────────────────────────────────────────────────────────────
+    const Icons = {
+      Shield: () => (
+        <svg className="w-5 h-5 text-[#a8734f]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+        </svg>
+      ),
+      Check: () => (
+        <svg className="w-4 h-4 text-[#a8734f] inline" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+        </svg>
+      ),
+      Cross: () => (
+        <svg className="w-4 h-4 text-[#a8734f]/70 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      ),
+      AlertTriangle: () => (
+        <svg className="w-4 h-4 text-[#a8734f] inline" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+      ),
+      Search: () => (
+        <svg className="w-4 h-4 text-[#826d5a]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+      ),
+      Terminal: () => (
+        <svg className="w-4 h-4 text-[#a8734f]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+      ),
+      Download: () => (
+        <svg className="w-4 h-4 text-[#a8734f]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+        </svg>
+      )
+    };
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // MAIN APP
+    // ─────────────────────────────────────────────────────────────────────────
+    function App() {
+      const [view, setView] = useState('scanner'); // 'scanner' | 'findings' | 'history' | 'upload'
+      const [provider, setProvider] = useState('aws'); // 'aws' | 'gcp'
+      const [apiStatus, setApiStatus] = useState(null);
+
+      // AWS Form
+      const [awsRegion, setAwsRegion] = useState('us-east-1');
+      const [awsAccessKey, setAwsAccessKey] = useState('');
+      const [awsSecretKey, setAwsSecretKey] = useState('');
+      const [awsSessionToken, setAwsSessionToken] = useState('');
+
+      // GCP Form
+      const [gcpProjectId, setGcpProjectId] = useState('');
+
+      // Scan & Results
+      const [isScanning, setIsScanning] = useState(false);
+      const [scanLogs, setScanLogs] = useState([]);
+      const [errorMsg, setErrorMsg] = useState(null);
+      const [scanData, setScanData] = useState(null);
+      const [history, setHistory] = useState([]);
+
+      // Filters
+      const [searchTerm, setSearchTerm] = useState('');
+      const [severityFilter, setSeverityFilter] = useState('all');
+      const [providerFilter, setProviderFilter] = useState('all');
+      const [expandedBucket, setExpandedBucket] = useState(null);
+
+      useEffect(() => {
+        fetch('/api/status')
+          .then(res => res.json())
+          .then(data => setApiStatus(data))
+          .catch(() => setApiStatus({ status: 'offline' }));
+        loadHistory();
+      }, []);
+
+      const loadHistory = () => {
+        fetch('/api/history')
+          .then(res => res.json())
+          .then(data => setHistory(data.records || []))
+          .catch(e => console.error(e));
+      };
+
+      const triggerScan = async () => {
+        if (provider === 'aws' && (!awsAccessKey.trim() || !awsSecretKey.trim())) {
+          setErrorMsg('Enter your AWS IAM access key ID and secret access key to continue.');
+          return;
+        }
+        if (provider === 'gcp' && !gcpProjectId.trim()) {
+          setErrorMsg('Enter your Google Cloud project ID to continue.');
+          return;
+        }
+
+        setIsScanning(true);
+        setErrorMsg(null);
+        setScanLogs(provider === 'gcp'
+          ? ['[INFO] Starting GCP security audit...', '[AUTH] Checking Google credentials. A browser sign-in will open if authorization is needed.']
+          : ['[INFO] Starting AWS security audit...']);
+
+        try {
+          const endpoint = provider === 'aws' ? '/api/scan/aws' : '/api/scan/gcp';
+          const payload = provider === 'aws' ? {
+            region: awsRegion,
+            access_key: awsAccessKey,
+            secret_key: awsSecretKey,
+            session_token: awsSessionToken
+          } : {
+            project_id: gcpProjectId.trim()
+          };
+
+          setScanLogs(prev => [
+            ...prev,
+            `[INIT] Authenticating to ${provider === 'aws' ? 'Amazon S3' : 'Google Cloud' }...`,
+            `[AUDIT] Inspecting buckets, access prevention, and IAM statements...`
+          ]);
+
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+
+          const data = await res.json();
+          if (!res.ok || !data.success) {
+            throw new Error(data.error || 'Scan failed to complete');
+          }
+
+          setScanLogs(prev => [
+            ...prev,
+            `[SUCCESS] Discovered and audited ${data.total_scanned} bucket(s).`,
+            `[SCORING] CIS benchmark findings evaluated and recorded to ledger.`
+          ]);
+
+          setScanData(data);
+          loadHistory();
+          setTimeout(() => {
+            setIsScanning(false);
+            setView('findings');
+          }, 500);
+
+        } catch (err) {
+          setErrorMsg(err.message);
+          setIsScanning(false);
+          setScanLogs(prev => [...prev, `[ERROR] ${err.message}`]);
+        }
+      };
+
+      const loadSampleData = async () => {
+        setIsScanning(true);
+        setScanLogs(['[DEMO] Loading sample multi-cloud benchmark dataset...']);
+        try {
+          const res = await fetch('/api/sample-data');
+          const data = await res.json();
+          setScanData(data);
+          loadHistory();
+          setTimeout(() => {
+            setIsScanning(false);
+            setView('findings');
+          }, 350);
+        } catch (err) {
+          setErrorMsg(err.message);
+          setIsScanning(false);
+        }
+      };
+
+      const filteredBuckets = useMemo(() => {
+        if (!scanData || !scanData.analysis) return [];
+        return scanData.analysis.filter(item => {
+          const matchesSearch = item.bucket_name.toLowerCase().includes(searchTerm.toLowerCase());
+          const matchesSev = severityFilter === 'all' || item.severity.toLowerCase() === severityFilter.toLowerCase();
+          const matchesProv = providerFilter === 'all' || item.provider.toLowerCase() === providerFilter.toLowerCase();
+          return matchesSearch && matchesSev && matchesProv;
+        });
+      }, [scanData, searchTerm, severityFilter, providerFilter]);
+
+      const metrics = useMemo(() => {
+        if (!scanData || !scanData.analysis) return null;
+        const total = scanData.analysis.length;
+        const critical = scanData.analysis.filter(b => b.severity === 'critical').length;
+        const high = scanData.analysis.filter(b => b.severity === 'high').length;
+        const medium = scanData.analysis.filter(b => b.severity === 'medium').length;
+        const low = scanData.analysis.filter(b => b.severity === 'low').length;
+        const avgScore = total > 0 ? Math.round(scanData.analysis.reduce((sum, b) => sum + b.risk_score, 0) / total) : 0;
+        
+        const rawMap = {};
+        (scanData.raw_records || []).forEach(r => { rawMap[r.bucket_name] = r; });
+        const publicReadCount = Object.values(rawMap).filter(r => r.effective_public_read).length;
+        const encryptedCount = Object.values(rawMap).filter(r => r.encryption_enabled).length;
+
+        return { total, critical, high, medium, low, avgScore, publicReadCount, encryptedCount, rawMap };
+      }, [scanData]);
+
+      return (
+        <div className="min-h-screen flex flex-col bg-[#f6efe7] text-[#382a20]">
+          
+          {/* ───────────────────────────────────────────────────────────── */}
+          {/* APP SIDEBAR AND NAVIGATION */}
+          {/* ───────────────────────────────────────────────────────────── */}
+          <header className="h-16 bg-[#fffaf4] border-b border-[#e5d8c9] sticky top-0 z-40 px-6 flex items-center justify-between">
+            
+            {/* Brand Logo & Title */}
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-[#e5d8c9] border border-[#826d5a] flex items-center justify-center">
+                <Icons.Shield />
+              </div>
+              <div className="brand-content">
+                <h1 className="font-bold text-[#382a20] text-sm tracking-tight">Cloud Security Scanner</h1>
+                <p className="text-[11px] text-[#826d5a]">Multi-Cloud Storage Security Platform</p>
+                <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-[#e5d8c9] text-[#a8734f] border border-[#826d5a]">
+                  CIS Benchmark
+                </span>
+              </div>
+            </div>
+
+            {/* Navigation Tabs */}
+            <nav aria-label="Main navigation" className="flex items-center space-x-1 border border-[#e5d8c9] rounded-lg p-1 bg-[#f6efe7]">
+              <button
+                onClick={() => setView('scanner')}
+                aria-current={view === 'scanner' ? 'page' : undefined}
+                className={`px-3.5 py-1.5 rounded-md text-xs font-semibold transition ${
+                  view === 'scanner' ? 'bg-[#e5d8c9] text-[#382a20]' : 'text-[#826d5a] hover:text-[#382a20]'
+                }`}
+              >
+                Scan Engine
+              </button>
+              <button
+                onClick={() => setView('findings')}
+                aria-current={view === 'findings' ? 'page' : undefined}
+                className={`px-3.5 py-1.5 rounded-md text-xs font-semibold transition flex items-center gap-1.5 ${
+                  view === 'findings' ? 'bg-[#e5d8c9] text-[#382a20]' : 'text-[#826d5a] hover:text-[#382a20]'
+                }`}
+              >
+                Findings Dashboard
+                {scanData && (
+                  <span className="px-1.5 py-0.2 bg-[#fffaf4] text-[#a8734f] rounded-full text-[10px] font-mono">
+                    {scanData.analysis.length}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => setView('history')}
+                aria-current={view === 'history' ? 'page' : undefined}
+                className={`px-3.5 py-1.5 rounded-md text-xs font-semibold transition flex items-center gap-1.5 ${
+                  view === 'history' ? 'bg-[#e5d8c9] text-[#382a20]' : 'text-[#826d5a] hover:text-[#382a20]'
+                }`}
+              >
+                Audit Ledger
+                <span className="px-1.5 py-0.2 bg-[#fffaf4] text-[#a8734f] rounded-full text-[10px] font-mono">
+                  {history.length}
+                </span>
+              </button>
+              <button
+                onClick={() => setView('upload')}
+                aria-current={view === 'upload' ? 'page' : undefined}
+                className={`px-3.5 py-1.5 rounded-md text-xs font-semibold transition ${
+                  view === 'upload' ? 'bg-[#e5d8c9] text-[#382a20]' : 'text-[#826d5a] hover:text-[#382a20]'
+                }`}
+              >
+                Upload JSON
+              </button>
+            </nav>
+
+            {/* Quick Demo Action & API Status */}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={loadSampleData}
+                className="px-3 py-1.5 rounded-md text-xs font-semibold bg-[#e5d8c9]/60 hover:bg-[#e5d8c9] border border-[#826d5a] text-[#382a20] transition flex items-center gap-1.5"
+                title="Populate dashboard with sample benchmark data"
+              >
+                <span>⚡</span> Load Sample Scan
+              </button>
+
+              <div className="flex items-center gap-2 px-2.5 py-1 rounded-md bg-[#f6efe7] border border-[#e5d8c9] text-xs">
+                <span className={`w-2 h-2 rounded-full ${apiStatus?.status === 'online' ? 'bg-[#a8734f]' : 'bg-[#826d5a]'}`} />
+                <span className="text-[#826d5a] font-mono text-[11px]">API: {apiStatus?.status === 'online' ? 'Online' : 'Offline'}</span>
+              </div>
+            </div>
+
+          </header>
+
+          {/* ───────────────────────────────────────────────────────────── */}
+          {/* BODY CANVAS                                                   */}
+          {/* ───────────────────────────────────────────────────────────── */}
+          <main className="flex-1 max-w-7xl w-full mx-auto p-6 md:p-8 space-y-6">
+
+            <section className="page-intro">
+              <span className="eyebrow">Cloud posture · CIS benchmark</span>
+              <h2>{view === 'scanner' ? 'Security scan' : view === 'findings' ? 'Findings overview' : view === 'history' ? 'Audit ledger' : 'Analyze a scan file'}</h2>
+              <p>{view === 'scanner' ? 'Connect a cloud account and review storage security in one place.' : view === 'findings' ? 'Review risk, exposure, and remediation details across scanned buckets.' : view === 'history' ? 'Browse results from previous cloud storage audits.' : 'Import saved scanner output and evaluate it against the same controls.'}</p>
+            </section>
+            
+            {/* VIEW 1: SCANNER CONSOLE */}
+            {view === 'scanner' && (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                
+                {/* Left 7 cols: Target Provider & Form */}
+                <div className="lg:col-span-7 space-y-6">
+                  
+                  {/* Provider Selection (Clean Typographic Badges, No Distorted Icons) */}
+                  <div>
+                    <h2 className="text-xs font-bold uppercase tracking-wider text-[#826d5a] mb-3">Target Cloud Service</h2>
+                    
+                    <div className="grid grid-cols-2 gap-4" role="group" aria-label="Choose a cloud provider">
+                      
+                      {/* AWS Card */}
+                      <button
+                        type="button"
+                        aria-pressed={provider === 'aws'}
+                        onClick={() => setProvider('aws')}
+                        className={`provider-option rounded-xl p-4 border transition-all ${
+                          provider === 'aws'
+                            ? 'bg-[#fffaf4] border-[#a8734f] ring-1 ring-[#a8734f]'
+                            : 'bg-[#fffaf4]/60 border-[#e5d8c9] hover:border-[#826d5a]'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-mono font-extrabold text-sm px-2.5 py-1 rounded bg-[#e5d8c9] border border-[#826d5a] text-[#382a20] tracking-wider">
+                            AWS S3
+                          </span>
+                          {provider === 'aws' && (
+                            <span className="text-[11px] font-bold text-[#a8734f] bg-[#e5d8c9] px-2 py-0.5 rounded border border-[#826d5a]">
+                              Active
+                            </span>
+                          )}
+                        </div>
+                        <h3 className="font-bold text-[#382a20] text-sm mt-3">Amazon Web Services</h3>
+                        <p className="text-xs text-[#826d5a] mt-0.5">S3 Bucket Security, BPA & Policy Audit</p>
+                      </button>
+
+                      {/* GCP Card */}
+                      <button
+                        type="button"
+                        aria-pressed={provider === 'gcp'}
+                        onClick={() => setProvider('gcp')}
+                        className={`provider-option rounded-xl p-4 border transition-all ${
+                          provider === 'gcp'
+                            ? 'bg-[#fffaf4] border-[#a8734f] ring-1 ring-[#a8734f]'
+                            : 'bg-[#fffaf4]/60 border-[#e5d8c9] hover:border-[#826d5a]'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-mono font-extrabold text-sm px-2.5 py-1 rounded bg-[#e5d8c9] border border-[#826d5a] text-[#382a20] tracking-wider">
+                            GCP GCS
+                          </span>
+                          {provider === 'gcp' && (
+                            <span className="text-[11px] font-bold text-[#a8734f] bg-[#e5d8c9] px-2 py-0.5 rounded border border-[#826d5a]">
+                              Active
+                            </span>
+                          )}
+                        </div>
+                        <h3 className="font-bold text-[#382a20] text-sm mt-3">Google Cloud Platform</h3>
+                        <p className="text-xs text-[#826d5a] mt-0.5">Cloud Storage, PAP, UBLA & IAM Audit</p>
+                      </button>
+
+                    </div>
+                  </div>
+
+                  {/* Form Container */}
+                  <div className="bg-[#fffaf4] border border-[#e5d8c9] rounded-xl p-6 space-y-5">
+                    
+                    <div className="border-b border-[#e5d8c9] pb-3 flex items-center justify-between">
+                      <div>
+                        <h3 className="font-bold text-[#382a20] text-sm">
+                          {provider === 'aws' ? 'AWS Authentication' : 'GCP Authentication'}
+                        </h3>
+                        <p className="text-xs text-[#826d5a] mt-0.5">
+                          {provider === 'aws'
+                            ? 'Enter your AWS IAM access key and secret key'
+                            : 'Enter a project ID and authorize your Google account'}
+                        </p>
+                      </div>
+                      <span className="text-xs text-[#a8734f] bg-[#f6efe7] border border-[#e5d8c9] px-2.5 py-1 rounded font-mono">
+                        Local scan
+                      </span>
+                    </div>
+
+                    {/* AWS INPUTS */}
+                    {provider === 'aws' && (
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-xs font-semibold text-[#a8734f] mb-1">AWS IAM Access Key ID <span className="text-[#826d5a]">(required)</span></label>
+                          <input
+                            type="text"
+                            autoComplete="off"
+                            value={awsAccessKey}
+                            onChange={(e) => setAwsAccessKey(e.target.value)}
+                            placeholder="Enter access key ID"
+                            className="w-full bg-[#f6efe7] border border-[#e5d8c9] focus:border-[#a8734f] rounded-lg px-3.5 py-2 text-xs text-[#382a20] placeholder-[#826d5a] font-mono focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-[#a8734f] mb-1">AWS Secret Access Key <span className="text-[#826d5a]">(required)</span></label>
+                          <input
+                            type="password"
+                            autoComplete="new-password"
+                            value={awsSecretKey}
+                            onChange={(e) => setAwsSecretKey(e.target.value)}
+                            placeholder="Enter secret access key"
+                            className="w-full bg-[#f6efe7] border border-[#e5d8c9] focus:border-[#a8734f] rounded-lg px-3.5 py-2 text-xs text-[#382a20] placeholder-[#826d5a] font-mono focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-[#a8734f] mb-1 flex items-center justify-between">
+                            <span>AWS Session Token</span>
+                            <span className="text-[11px] text-[#826d5a] font-normal">Optional for temporary credentials</span>
+                          </label>
+                          <input
+                            type="password"
+                            autoComplete="new-password"
+                            value={awsSessionToken}
+                            onChange={(e) => setAwsSessionToken(e.target.value)}
+                            placeholder="Leave empty for long-term IAM credentials"
+                            className="w-full bg-[#f6efe7] border border-[#e5d8c9] focus:border-[#a8734f] rounded-lg px-3.5 py-2 text-xs text-[#382a20] placeholder-[#826d5a] font-mono focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-[#a8734f] mb-1">AWS Region</label>
+                          <select
+                            value={awsRegion}
+                            onChange={(e) => setAwsRegion(e.target.value)}
+                            className="w-full bg-[#f6efe7] border border-[#e5d8c9] focus:border-[#a8734f] rounded-lg px-3.5 py-2 text-xs text-[#382a20] font-mono focus:outline-none"
+                          >
+                            <option value="us-east-1">us-east-1 (N. Virginia)</option>
+                            <option value="us-east-2">us-east-2 (Ohio)</option>
+                            <option value="us-west-1">us-west-1 (N. California)</option>
+                            <option value="us-west-2">us-west-2 (Oregon)</option>
+                            <option value="eu-west-1">eu-west-1 (Ireland)</option>
+                            <option value="eu-central-1">eu-central-1 (Frankfurt)</option>
+                            <option value="ap-south-1">ap-south-1 (Mumbai)</option>
+                            <option value="ap-southeast-1">ap-southeast-1 (Singapore)</option>
+                          </select>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* GCP INPUTS */}
+                    {provider === 'gcp' && (
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-xs font-semibold text-[#a8734f] mb-1">Google Cloud Project ID <span className="text-[#826d5a]">(required)</span></label>
+                          <input
+                            type="text"
+                            value={gcpProjectId}
+                            onChange={(e) => setGcpProjectId(e.target.value)}
+                            placeholder="e.g. corporate-production-12345"
+                            className="w-full bg-[#f6efe7] border border-[#e5d8c9] focus:border-[#a8734f] rounded-lg px-3.5 py-2 text-xs text-[#382a20] placeholder-[#826d5a] font-mono focus:outline-none"
+                          />
+                        </div>
+                        <div className="p-4 bg-[#f6efe7] border border-[#e5d8c9] rounded-xl text-xs text-[#826d5a] leading-relaxed">
+                          <strong className="text-[#624630]">Google sign-in</strong>
+                          <p className="mt-1">Scanning uses your Google account. If you are not signed in, a browser window will open to authorize access.</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Error Display */}
+                    {errorMsg && (
+                      <div className="p-3.5 bg-[#f6efe7] border border-[#826d5a] rounded-lg text-[#a8734f] text-xs flex items-start gap-2">
+                        <Icons.AlertTriangle />
+                        <div>
+                          <strong className="block text-[#382a20]">Scan Interrupted</strong>
+                          <span>{errorMsg}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Launch Button */}
+                    <button
+                      type="button"
+                      disabled={isScanning}
+                      onClick={triggerScan}
+                      className={`w-full py-3 rounded-lg font-bold text-xs tracking-wider uppercase transition flex items-center justify-center gap-2 ${
+                        isScanning
+                          ? 'bg-[#e5d8c9]/40 text-[#826d5a] cursor-not-allowed'
+                          : 'bg-[#e5d8c9] hover:bg-[#826d5a] text-[#382a20] border border-[#826d5a]'
+                      }`}
+                    >
+                      {isScanning ? (
+                        <>
+                          <div className="w-3.5 h-3.5 border-2 border-[#826d5a] border-t-[#382a20] rounded-full animate-spin" />
+                          <span>{provider === 'gcp' ? 'Connecting to Google Cloud...' : 'Auditing Storage Buckets...'}</span>
+                        </>
+                      ) : (
+                        <span>Execute {provider.toUpperCase()} Security Scan</span>
+                      )}
+                    </button>
+
+                  </div>
+                </div>
+
+                {/* Right 5 cols: Terminal Stream & CIS Checklist */}
+                <div className="lg:col-span-5 space-y-6">
+                  
+                  {/* Console Log */}
+                  <div className="bg-[#fffaf4] border border-[#e5d8c9] rounded-xl overflow-hidden">
+                    <div className="px-4 py-3 bg-[#f6efe7] border-b border-[#e5d8c9] flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Icons.Terminal />
+                        <span className="text-xs font-mono font-semibold text-[#a8734f]">audit-execution.log</span>
+                      </div>
+                      <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-[#fffaf4] text-[#826d5a] font-semibold border border-[#e5d8c9]">
+                        Stream
+                      </span>
+                    </div>
+
+                    <div className="p-4 bg-[#f6efe7] font-mono text-xs text-[#382a20] space-y-1.5 h-64 overflow-y-auto">
+                      {scanLogs.length === 0 ? (
+                        <div className="text-[#826d5a] italic">Scanner idle. Configure credentials and click execute.</div>
+                      ) : (
+                        scanLogs.map((log, i) => (
+                          <div key={i} className="flex gap-2 leading-relaxed">
+                            <span className="text-[#826d5a] select-none">&gt;</span>
+                            <span className={log.includes('[ERROR]') ? 'text-[#a8734f] font-semibold' : log.includes('[SUCCESS]') ? 'text-[#a8734f] font-semibold' : 'text-[#382a20]'}>
+                              {log}
+                            </span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  {/* CIS Benchmark Controls Card */}
+                  <div className="bg-[#fffaf4] border border-[#e5d8c9] rounded-xl p-5 space-y-3">
+                    <div className="flex items-center justify-between border-b border-[#e5d8c9] pb-2.5">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-[#a8734f]">CIS Benchmark Rules Evaluated</h4>
+                      <span className="text-xs font-semibold text-[#826d5a] font-mono">CIS 3.1 - 3.6</span>
+                    </div>
+
+                    <div className="space-y-2 text-xs">
+                      {[
+                        { id: '3.1', label: 'Public Read Exposure', desc: 'Checks GetObject permissions and wildcard members.' },
+                        { id: '3.2', label: 'Public Write Exposure', desc: 'Verifies unauthorized PutObject capabilities.' },
+                        { id: '3.3', label: 'Storage Encryption at Rest', desc: 'Checks AES-256 or customer-managed KMS keys.' },
+                        { id: '3.4', label: 'Server Access Logging', desc: 'Validates logging target bucket and prefix.' },
+                        { id: '3.5', label: 'Object Versioning', desc: 'Protects from accidental deletion and tampering.' },
+                        { id: '3.6', label: 'Overly Permissive IAM', desc: 'Detects wildcard principal grants (* / allUsers).' },
+                      ].map(ctrl => (
+                        <div key={ctrl.id} className="p-2.5 rounded-lg border border-[#e5d8c9] bg-[#f6efe7] flex items-start gap-3">
+                          <span className="px-1.5 py-0.5 rounded bg-[#e5d8c9] text-[#382a20] font-mono text-[11px] font-bold">
+                            {ctrl.id}
+                          </span>
+                          <div>
+                            <p className="font-semibold text-[#382a20]">{ctrl.label}</p>
+                            <p className="text-[11px] text-[#826d5a] mt-0.5">{ctrl.desc}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                </div>
+
+              </div>
+            )}
+
+            {/* VIEW 2: SECURITY FINDINGS (DASHBOARD) */}
+            {view === 'findings' && (
+              <div className="space-y-6">
+                
+                {!scanData || !scanData.analysis || scanData.analysis.length === 0 ? (
+                  <div className="findings-empty-state">
+                    <div className="empty-state-icon"><Icons.Shield /></div>
+                    <h3 className="text-xl font-semibold text-[#382a20] mt-5 mb-2">No Scan Findings Available</h3>
+                    <p className="empty-state-copy text-sm">
+                      Execute a scan against your cloud environment or load our benchmark sample to review posture.
+                    </p>
+                    <div className="empty-state-actions">
+                      <button
+                        onClick={() => setView('scanner')}
+                      >
+                        Open Scan Engine
+                      </button>
+                      <button
+                        onClick={loadSampleData}
+                      >
+                        Load Sample Dataset
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {/* Top Stat Cards */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                      
+                      {/* Overall Health Card */}
+                      <div className="col-span-2 bg-[#fffaf4] border border-[#e5d8c9] rounded-xl p-5 flex items-center justify-between">
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-wider text-[#826d5a]">Security Posture Score</p>
+                          <div className="flex items-baseline gap-2 mt-1">
+                            <span className="text-4xl font-extrabold font-mono text-[#382a20]">
+                              {metrics.avgScore}
+                            </span>
+                            <span className="text-xs text-[#826d5a]">/ 100 risk score</span>
+                          </div>
+                          <p className="text-xs text-[#a8734f] mt-2 font-medium">
+                            {metrics.avgScore >= 60 ? 'Notice: Critical Remediations Found' : metrics.avgScore >= 30 ? 'Notice: Hardening Recommended' : 'Status: Posture Healthy'}
+                          </p>
+                        </div>
+
+                        <div className="w-14 h-14 rounded-xl flex items-center justify-center font-bold text-sm bg-[#e5d8c9] text-[#382a20] border border-[#826d5a]">
+                          {metrics.avgScore >= 60 ? 'HIGH' : metrics.avgScore >= 30 ? 'MED' : 'LOW'}
+                        </div>
+                      </div>
+
+                      {/* Total Buckets */}
+                      <div className="bg-[#fffaf4] border border-[#e5d8c9] rounded-xl p-5">
+                        <p className="text-xs font-bold uppercase tracking-wider text-[#826d5a]">Total Buckets</p>
+                        <p className="text-3xl font-extrabold text-[#382a20] mt-1 font-mono">{metrics.total}</p>
+                        <p className="text-xs text-[#826d5a] mt-2">100% evaluated</p>
+                      </div>
+
+                      {/* Public Exposures */}
+                      <div className="bg-[#fffaf4] border border-[#e5d8c9] rounded-xl p-5">
+                        <p className="text-xs font-bold uppercase tracking-wider text-[#826d5a]">Public Access</p>
+                        <p className="text-3xl font-extrabold mt-1 font-mono text-[#382a20]">
+                          {metrics.publicReadCount}
+                        </p>
+                        <p className="text-xs text-[#826d5a] mt-2">Effective public read</p>
+                      </div>
+
+                      {/* Critical Findings */}
+                      <div className="bg-[#fffaf4] border border-[#e5d8c9] rounded-xl p-5">
+                        <p className="text-xs font-bold uppercase tracking-wider text-[#826d5a]">Critical Risks</p>
+                        <p className="text-3xl font-extrabold text-[#382a20] mt-1 font-mono">{metrics.critical}</p>
+                        <p className="text-xs text-[#826d5a] mt-2">{metrics.high} high tier</p>
+                      </div>
+
+                      {/* Encryption Rate */}
+                      <div className="bg-[#fffaf4] border border-[#e5d8c9] rounded-xl p-5">
+                        <p className="text-xs font-bold uppercase tracking-wider text-[#826d5a]">Encrypted</p>
+                        <p className="text-3xl font-extrabold text-[#382a20] mt-1 font-mono">
+                          {Math.round((metrics.encryptedCount / (metrics.total || 1)) * 100)}%
+                        </p>
+                        <p className="text-xs text-[#826d5a] mt-2">{metrics.encryptedCount} of {metrics.total} buckets</p>
+                      </div>
+
+                    </div>
+
+                    {/* Filter and Search Bar */}
+                    <div className="bg-[#fffaf4] border border-[#e5d8c9] rounded-xl p-4 flex flex-col md:flex-row items-center justify-between gap-4">
+                      
+                      {/* Search */}
+                      <div className="relative w-full md:w-80">
+                        <span className="absolute left-3 top-2.5">
+                          <Icons.Search />
+                        </span>
+                        <input
+                          type="text"
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          placeholder="Search bucket name..."
+                          className="w-full bg-[#f6efe7] border border-[#e5d8c9] focus:border-[#a8734f] rounded-lg pl-9 pr-3 py-1.5 text-xs text-[#382a20] placeholder-[#826d5a] focus:outline-none"
+                        />
+                      </div>
+
+                      {/* Severity Filters */}
+                      <div className="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto">
+                        <span className="text-xs text-[#826d5a] font-semibold mr-1">Severity:</span>
+                        {['all', 'critical', 'high', 'medium', 'low', 'info'].map(s => (
+                          <button
+                            key={s}
+                            onClick={() => setSeverityFilter(s)}
+                            className={`px-2.5 py-1 rounded text-xs font-semibold capitalize transition ${
+                              severityFilter === s
+                                ? 'bg-[#e5d8c9] text-[#382a20] border border-[#826d5a]'
+                                : 'bg-[#f6efe7] text-[#826d5a] hover:text-[#382a20]'
+                            }`}
+                          >
+                            {s}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Provider Filter & Download */}
+                      <div className="flex items-center gap-3 w-full md:w-auto justify-end">
+                        <select
+                          value={providerFilter}
+                          onChange={(e) => setProviderFilter(e.target.value)}
+                          className="bg-[#f6efe7] border border-[#e5d8c9] rounded-lg px-2.5 py-1.5 text-xs text-[#382a20] font-medium focus:outline-none"
+                        >
+                          <option value="all">All Providers</option>
+                          <option value="aws">AWS</option>
+                          <option value="gcp">GCP</option>
+                        </select>
+
+                        <button
+                          onClick={() => {
+                            const blob = new Blob([JSON.stringify(scanData, null, 2)], { type: 'application/json' });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `cloud_audit_${Date.now()}.json`;
+                            a.click();
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-[#e5d8c9] hover:bg-[#826d5a] border border-[#826d5a] text-xs text-[#382a20] flex items-center gap-1.5 font-semibold transition"
+                        >
+                          <Icons.Download /> Export JSON
+                        </button>
+                      </div>
+
+                    </div>
+
+                    {/* Table of Buckets */}
+                    <div className="bg-[#fffaf4] border border-[#e5d8c9] rounded-xl overflow-hidden">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-[#f6efe7] text-[#826d5a] border-b border-[#e5d8c9] uppercase tracking-wider font-semibold text-[11px]">
+                          <tr>
+                            <th className="p-4">Bucket Name</th>
+                            <th className="p-4">Provider</th>
+                            <th className="p-4">Public Read</th>
+                            <th className="p-4">Encryption</th>
+                            <th className="p-4">BPA / Guardrail</th>
+                            <th className="p-4">Risk Score</th>
+                            <th className="p-4">Severity</th>
+                            <th className="p-4 text-right">Details</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#e5d8c9]/50 text-[#382a20]">
+                          {filteredBuckets.map(item => {
+                            const raw = metrics.rawMap[item.bucket_name] || {};
+                            const isExpanded = expandedBucket === item.bucket_name;
+
+                            return (
+                              <React.Fragment key={item.bucket_name}>
+                                <tr className="hover:bg-[#e5d8c9]/30 transition cursor-pointer" onClick={() => setExpandedBucket(isExpanded ? null : item.bucket_name)}>
+                                  <td className="p-4 font-mono font-bold text-[#382a20] flex items-center gap-2">
+                                    <span className="px-1.5 py-0.5 rounded text-[10px] bg-[#e5d8c9] text-[#a8734f] border border-[#826d5a] font-mono">
+                                      {item.provider.toUpperCase()}
+                                    </span>
+                                    <span>{item.bucket_name}</span>
+                                    {item.drift?.changed && (
+                                      <span className="px-1.5 py-0.5 rounded bg-[#e5d8c9] text-[#382a20] text-[10px] font-bold border border-[#826d5a]">
+                                        Drift: {item.drift.change}
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td className="p-4 uppercase font-semibold text-[#826d5a]">{item.provider}</td>
+                                  <td className="p-4">
+                                    {raw.effective_public_read ? (
+                                      <span className="px-2 py-0.5 rounded bg-[#e5d8c9] text-[#382a20] font-bold border border-[#826d5a] text-[11px]">
+                                        PUBLIC
+                                      </span>
+                                    ) : (
+                                      <span className="text-[#826d5a] font-medium">Private</span>
+                                    )}
+                                  </td>
+                                  <td className="p-4">
+                                    {raw.encryption_enabled ? (
+                                      <span className="text-[#a8734f] font-medium flex items-center gap-1">
+                                        <Icons.Check /> Enabled
+                                      </span>
+                                    ) : (
+                                      <span className="text-[#826d5a] flex items-center gap-1">
+                                        <Icons.Cross /> Disabled
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td className="p-4">
+                                    {raw.block_public_access ? (
+                                      <span className="text-[#a8734f] font-medium flex items-center gap-1">
+                                        <Icons.Check /> Enforced
+                                      </span>
+                                    ) : (
+                                      <span className="text-[#826d5a] flex items-center gap-1">
+                                        <Icons.Cross /> Off
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td className="p-4 font-mono font-bold text-sm text-[#382a20]">
+                                    {item.risk_score}
+                                  </td>
+                                  <td className="p-4 uppercase">
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold border bg-[#e5d8c9] text-[#382a20] border-[#826d5a]">
+                                      {item.severity}
+                                    </span>
+                                  </td>
+                                  <td className="p-4 text-right">
+                                    <button className="text-[#a8734f] font-bold text-xs hover:underline">
+                                      {isExpanded ? 'Hide ▲' : 'Inspect ▼'}
+                                    </button>
+                                  </td>
+                                </tr>
+
+                                {isExpanded && (
+                                  <tr className="bg-[#f6efe7]">
+                                    <td colSpan={8} className="p-6 border-t border-b border-[#e5d8c9]">
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        
+                                        {/* CIS Violations List */}
+                                        <div className="bg-[#fffaf4] p-4 rounded-xl border border-[#e5d8c9] space-y-3">
+                                          <h5 className="font-bold text-xs uppercase tracking-wider text-[#a8734f]">CIS Benchmark Violations</h5>
+                                          {item.findings.length === 0 ? (
+                                            <p className="text-xs text-[#a8734f] font-medium flex items-center gap-1.5">
+                                              <Icons.Check /> Bucket passes all storage security benchmark checks.
+                                            </p>
+                                          ) : (
+                                            item.findings.map((f, fi) => (
+                                              <div key={fi} className="p-2.5 rounded-lg border border-[#e5d8c9] bg-[#f6efe7] flex items-start justify-between">
+                                                <div>
+                                                  <span className="px-1.5 py-0.5 rounded bg-[#e5d8c9] text-[#382a20] font-mono text-[10px] font-bold mr-2">
+                                                    CIS {f.cis_control}
+                                                  </span>
+                                                  <span className="font-mono text-xs font-semibold text-[#382a20]">{f.id}</span>
+                                                  <p className="text-[11px] text-[#826d5a] mt-1">Rule key: {f.explanation_key}</p>
+                                                </div>
+                                                <span className="px-2 py-0.5 bg-[#e5d8c9] text-[#382a20] text-[10px] font-bold rounded border border-[#826d5a]">
+                                                  Deficiency
+                                                </span>
+                                              </div>
+                                            ))
+                                          )}
+                                        </div>
+
+                                        {/* Configuration Details & Evidence */}
+                                        <div className="bg-[#fffaf4] p-4 rounded-xl border border-[#e5d8c9] space-y-3">
+                                          <h5 className="font-bold text-xs uppercase tracking-wider text-[#a8734f]">Audit Evidence & Policy Metadata</h5>
+                                          <div className="p-3 bg-[#f6efe7] border border-[#e5d8c9] rounded-lg text-[#382a20] font-mono text-xs leading-relaxed break-all">
+                                            {raw.raw_evidence || 'No policy evidence recorded.'}
+                                          </div>
+                                          <div className="text-[11px] text-[#826d5a] space-y-1 font-mono">
+                                            <p>Scan Timestamp: {raw.scan_time}</p>
+                                            {raw.gcp_details && (
+                                              <p>GCP PAP: {raw.gcp_details.public_access_prevention} | UBLA: {raw.gcp_details.uniform_bucket_level_access ? 'Enabled' : 'Disabled'}</p>
+                                            )}
+                                          </div>
+                                        </div>
+
+                                      </div>
+                                    </td>
+                                  </tr>
+                                )}
+                              </React.Fragment>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
+
+              </div>
+            )}
+
+            {/* VIEW 3: AUDIT HISTORY LEDGER */}
+            {view === 'history' && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-base font-bold text-[#382a20]">Audit Ledger (SQLite)</h2>
+                    <p className="text-xs text-[#826d5a] mt-0.5">Persistent scan records with temporal drift analysis.</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={loadHistory}
+                      className="px-3 py-1.5 rounded-lg bg-[#fffaf4] border border-[#e5d8c9] text-xs font-semibold text-[#382a20] hover:bg-[#e5d8c9] transition"
+                    >
+                      Refresh
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (confirm('Clear audit history database?')) {
+                          await fetch('/api/clear-history', { method: 'POST' });
+                          loadHistory();
+                        }
+                      }}
+                      className="px-3 py-1.5 rounded-lg bg-[#e5d8c9] border border-[#826d5a] text-xs font-semibold text-[#a8734f] hover:bg-[#826d5a] transition"
+                    >
+                      Clear Database
+                    </button>
+                  </div>
+                </div>
+
+                <div className="bg-[#fffaf4] border border-[#e5d8c9] rounded-xl overflow-hidden">
+                  {history.length === 0 ? (
+                    <div className="p-12 text-center text-[#826d5a] text-xs font-mono">
+                      No records found in SQLite database. Run your first audit scan to record findings.
+                    </div>
+                  ) : (
+                    <table className="w-full text-left text-xs font-mono">
+                      <thead className="bg-[#f6efe7] text-[#826d5a] border-b border-[#e5d8c9] uppercase tracking-wider text-[11px]">
+                        <tr>
+                          <th className="p-3.5">Bucket Name</th>
+                          <th className="p-3.5">Provider</th>
+                          <th className="p-3.5">Timestamp</th>
+                          <th className="p-3.5">Risk Score</th>
+                          <th className="p-3.5">Severity</th>
+                          <th className="p-3.5">Public Exposure</th>
+                          <th className="p-3.5">Findings</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#e5d8c9]/50 text-[#382a20]">
+                        {history.map(row => (
+                          <tr key={row.id} className="hover:bg-[#e5d8c9]/30">
+                            <td className="p-3.5 font-bold text-[#382a20]">{row.bucket_name}</td>
+                            <td className="p-3.5 uppercase">{row.provider}</td>
+                            <td className="p-3.5 text-[#826d5a]">{row.scan_time}</td>
+                            <td className="p-3.5 font-bold text-[#382a20]">
+                              {row.risk_score} / 100
+                            </td>
+                            <td className="p-3.5 uppercase font-semibold">
+                              <span className="px-2 py-0.5 rounded text-[10px] border bg-[#e5d8c9] text-[#382a20] border-[#826d5a]">
+                                {row.severity}
+                              </span>
+                            </td>
+                            <td className="p-3.5 font-semibold">
+                              {row.effective_public_read ? (
+                                <span className="text-[#a8734f]">PUBLIC</span>
+                              ) : (
+                                <span className="text-[#826d5a]">PRIVATE</span>
+                              )}
+                            </td>
+                            <td className="p-3.5 text-[#826d5a]">{row.findings?.length || 0} items</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* VIEW 4: UPLOAD JSON */}
+            {view === 'upload' && (
+              <div className="upload-page space-y-6 text-center py-6">
+                <div>
+                  <h2 className="text-base font-bold text-[#382a20]">Upload Saved Audit File</h2>
+                  <p className="text-xs text-[#826d5a] mt-1">Analyze raw JSON outputs without querying live cloud infrastructure.</p>
+                </div>
+
+                <div className="upload-dropzone border-2 border-dashed border-[#e5d8c9] hover:border-[#826d5a] rounded-xl p-10 bg-[#fffaf4] transition cursor-pointer relative">
+                  <input
+                    type="file"
+                    accept=".json"
+                    onChange={async (e) => {
+                      const file = e.target.files[0];
+                      if (!file) return;
+                      const text = await file.text();
+                      const records = JSON.parse(text);
+                      const res = await fetch('/api/analyze', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ records })
+                      });
+                      const data = await res.json();
+                      setScanData(data);
+                      loadHistory();
+                      setView('findings');
+                    }}
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                  />
+                  <div className="w-12 h-12 rounded-lg bg-[#e5d8c9] text-[#382a20] flex items-center justify-center mx-auto mb-3 border border-[#826d5a]">
+                    <Icons.Download />
+                  </div>
+                  <p className="font-semibold text-xs text-[#382a20]">Click to choose a JSON file</p>
+                  <p className="text-[11px] text-[#826d5a] mt-0.5">Supports aws_scan_output.json and gcp_scan_output.json</p>
+                </div>
+              </div>
+            )}
+
+          </main>
+
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

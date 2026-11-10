@@ -29,9 +29,9 @@ class ScanDatabase:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT risk_score, effective_public_read, severity 
+                SELECT risk_score, effective_public_read, severity
                 FROM scan_history 
-                WHERE bucket_name = ? 
+                WHERE bucket_name = ?
                 ORDER BY id DESC LIMIT 1
             """, (bucket_name,))
             row = cursor.fetchone()

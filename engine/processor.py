@@ -1,7 +1,35 @@
 # engine/processor.py
+import argparse
+import json
 
-from engine.scoring import evaluate_bucket_security
 from engine.database import ScanDatabase
+from engine.scoring import evaluate_bucket_security
+
+
+def load_scan_file(file_path: str):
+    """Load normalized cloud scan JSON from disk."""
+    with open(file_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    if isinstance(data, dict):
+        if all(key in data for key in ("bucket_name", "provider", "scan_time")):
+            return [data]
+        for key in ("records", "results", "buckets", "data"):
+            if key in data:
+                data = data[key]
+                break
+
+    if not isinstance(data, list):
+        raise ValueError(f"Unsupported JSON structure in {file_path}. Expected a list of bucket records.")
+
+    return data
+
+
+def process_scan_file(file_path: str):
+    """Read a saved scan JSON file and process it using the existing engine logic."""
+    raw_records = load_scan_file(file_path)
+    return process_scans(raw_records)
+
 
 def process_scans(raw_records: list):
     """
@@ -64,26 +92,17 @@ def process_scans(raw_records: list):
 
     return output_contract
 
-if __name__ == "__main__":
-    # Test stub using mock input from Person 1 contract
-    sample_input = [
-        {
-            "provider": "aws",
-            "bucket_name": "example-leaky-bucket",
-            "scan_time": "2026-11-10T10:00:00Z",
-            "block_public_access": False,
-            "effective_public_read": True,
-            "effective_public_write": False,
-            "encryption_enabled": False,
-            "logging_enabled": False,
-            "versioning_enabled": True,
-            "wildcard_principal": True,
-            "public_acl_detected": False,
-            "overly_permissive_iam": [],
-            "raw_evidence": "Policy statement allows Principal *"
-        }
-    ]
 
-    results = process_scans(sample_input)
-    import json
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Process a saved cloud scan JSON file with the existing security engine.")
+    parser.add_argument("json_file", nargs="?", default="aws_scan_output.json", help="Path to AWS or GCP scan JSON output")
+    args = parser.parse_args()
+
+    try:
+        results = process_scan_file(args.json_file)
+    except FileNotFoundError:
+        raise SystemExit(f"File not found: {args.json_file}")
+    except ValueError as exc:
+        raise SystemExit(str(exc))
+
     print(json.dumps(results, indent=2))
